@@ -4,9 +4,12 @@ import '@fontsource-variable/big-shoulders-display';
 import './styles.css';
 import { StoreProvider } from './lib/store.js';
 import App from './App.jsx';
+import { AuthGate } from './lib/auth.jsx';
 
 createRoot(document.getElementById('root')).render(
-  <StoreProvider>
-    <App />
-  </StoreProvider>,
+  <AuthGate>
+    <StoreProvider>
+      <App />
+    </StoreProvider>
+  </AuthGate>,
 );

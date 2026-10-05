@@ -21,3 +21,7 @@ npm test         # pruebas de importación y métricas
 npm run build    # genera dist/
 ```
 `scripts/shots.mjs` saca capturas con Playwright; `scripts/verify-plan.mjs` comprueba que el plan transcrito cuadra con los totales del PDF.
+
+## Acceso con Google
+`src/config.js` guarda el ID de cliente de OAuth (`GOOGLE_CLIENT_ID`) y las cuentas permitidas (`ALLOWED_EMAILS`). Con el ID vacío no se pide inicio de sesión. Para activarlo: Google Cloud Console › APIs y servicios › Credenciales › ID de cliente de OAuth › Aplicación web, con `https://banquillo-dashboard.vercel.app` (y `http://localhost:5173` para desarrollo) como orígenes JavaScript autorizados.
+Es una puerta de acceso en el navegador: valida el token de Google y la cuenta, pero no protege el código estático, que solo contiene el plan.

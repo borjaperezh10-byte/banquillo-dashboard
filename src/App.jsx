@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from './lib/store.js';
+import { useAuth } from './lib/auth.jsx';
 import { buildCtx } from './lib/metrics.js';
 import { addDays, monthOf } from './lib/dates.js';
 import Resumen from './views/resumen.jsx';
@@ -21,6 +22,7 @@ function rangeOf(preset, asOf) {
 
 export default function App() {
   const st = useStore();
+  const auth = useAuth();
   const { data, asOf, view, preset, campana } = st;
   const range = useMemo(() => rangeOf(preset, asOf), [preset, asOf]);
   const ctx = useMemo(() => buildCtx({ data, settings: data.settings, asOf, range, campana }), [data, asOf, range, campana]);
@@ -37,6 +39,7 @@ export default function App() {
           <div className="seg" role="group" aria-label="Tema">
             {Object.entries(themes).map(([k, l]) => <button key={k} type="button" aria-pressed={st.theme === k} onClick={() => st.setTheme(k)}>{l}</button>)}
           </div>
+          {auth.email && <button type="button" className="btn" onClick={auth.signOut} title={auth.email}>Cerrar sesión</button>}
         </div>
       </header>
       <nav className="nav" aria-label="Secciones">
