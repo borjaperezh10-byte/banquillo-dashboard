@@ -58,7 +58,7 @@ const Ctx = createContext(null);
 
 export function StoreProvider({ children }) {
   const [real, dispatch] = useReducer(reducer, undefined, load);
-  const [demo, setDemo] = useState(false);
+  const [demo, setDemo] = useState(() => { try { return new URLSearchParams(window.location.search).has('demo'); } catch { return false; } });
   const [view, setView] = useState('resumen');
   const [preset, setPreset] = useState('todo');
   const [campana, setCampana] = useState('');
