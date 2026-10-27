@@ -10,7 +10,7 @@ import { fmtDate } from '../lib/dates.js';
 function guessDefaults(name) {
   const n = String(name || '').toLowerCase();
   if (/tiktok|-tk-|_tk_|\btk\b/.test(n)) return { plataforma: 'TikTok' };
-  if (/instagram|-ig-|_ig_|reels||\big\b/.test(n)) return { plataforma: 'Instagram' };
+  if (/instagram|-ig-|_ig_|reels|\big\b/.test(n)) return { plataforma: 'Instagram' };
   if (/youtube|-yt-|_yt_|\byt\b|shorts/.test(n)) return { plataforma: 'YouTube' };
   return {};
 }
