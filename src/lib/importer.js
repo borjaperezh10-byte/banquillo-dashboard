@@ -70,8 +70,8 @@ export const DATASETS = {
   },
   videos: {
     id: 'videos',
-    label: 'Redes: visualizaciones (YouTube o TikTok)',
-    help: 'YouTube Studio › Estadísticas › Ver más › Exportar vista actual (CSV del gráfico, por día). TikTok Studio › Estadísticas › Descargar datos (resumen por día). Si el archivo no trae una columna de plataforma, elige la plataforma abajo. Reimportar un día lo actualiza, no lo duplica.',
+    label: 'Redes: visualizaciones (YouTube, TikTok o Instagram)',
+    help: 'YouTube Studio › Estadísticas › Ver más › Exportar vista actual (CSV del gráfico, por día). TikTok Studio › Estadísticas › Descargar datos (resumen por día). Instagram: Panel profesional › Estadísticas (anota a mano si no deja exportar). Si el archivo no trae una columna de plataforma, elige la plataforma abajo. Reimportar un día lo actualiza, no lo duplica.',
     fields: {
       fecha: { label: 'Fecha', type: T.date, req: true, aliases: ['fecha', 'date', 'dia', 'day'] },
       plataforma: { label: 'Plataforma', type: T.text, aliases: ['plataforma', 'platform', 'red', 'canal'] },
@@ -83,14 +83,14 @@ export const DATASETS = {
       seguidores: { label: 'Seguidores o suscriptores nuevos', type: T.num, aliases: ['suscriptores', 'subscribers', 'seguidores', 'followers', 'nuevos seguidores'], exclude: ['perdidos', 'lost'] },
       perfil: { label: 'Visitas al perfil', type: T.num, aliases: ['visualizaciones de perfil', 'visualizaciones del perfil', 'profile views', 'visitas al perfil'] },
     },
-    defaults: { plataforma: ['YouTube', 'TikTok'] },
+    defaults: { plataforma: ['YouTube', 'TikTok', 'Instagram'] },
     key: (r) => [r.fecha, r.plataforma, r.video].join('|'),
     sum: ['visualizaciones', 'likes', 'comentarios', 'compartidos', 'seguidores', 'perfil'],
   },
   afiliados: {
     id: 'afiliados',
-    label: 'Amazon Afiliados: enlaces de YouTube y TikTok',
-    help: 'Afiliados de Amazon › Informes › Tendencias diarias, filtrado por ID de seguimiento (banquillo-yt-21 o banquillo-tk-21), descargado en CSV. Si trae la columna «ID de seguimiento», la plataforma sale de ahí; si no, elígela abajo. La comisión son las «Tarifas por publicidad».',
+    label: 'Amazon Afiliados: enlaces de YouTube, TikTok e Instagram',
+    help: 'Afiliados de Amazon › Informes › Tendencias diarias, filtrado por ID de seguimiento (banquillo-yt-21, banquillo-tk-21 o banquillo-ig-21), descargado en CSV. Si trae la columna «ID de seguimiento», la plataforma sale de ahí; si no, elígela abajo. La comisión son las «Tarifas por publicidad».',
     fields: {
       fecha: { label: 'Fecha', type: T.date, req: true, aliases: ['fecha', 'date', 'fecha de envio', 'date shipped', 'dia', 'day'] },
       tag: { label: 'ID de seguimiento', type: T.text, aliases: ['id de seguimiento', 'tracking id', 'tag', 'etiqueta'] },
@@ -101,14 +101,14 @@ export const DATASETS = {
       ventas: { label: 'Ingresos (importe de las compras)', type: T.num, aliases: ['ingresos', 'revenue', 'ventas'], exclude: ['devoluciones', 'returns'] },
       comision: { label: 'Comisión (tarifas por publicidad)', type: T.num, req: true, aliases: ['tarifas por publicidad', 'tarifas de publicidad', 'total de tarifas por publicidad', 'ad fees', 'total ad fees', 'comisiones', 'comision', 'ganancias', 'earnings', 'tarifas'], exclude: ['devoluciones', 'returns'] },
     },
-    defaults: { plataforma: ['YouTube', 'TikTok'] },
+    defaults: { plataforma: ['YouTube', 'TikTok', 'Instagram'] },
     key: (r) => [r.fecha, r.plataforma].join('|'),
     sum: ['clics', 'pedidos', 'enviados', 'devueltos', 'ventas', 'comision'],
   },
 };
 
 // Plataforma a partir del ID de seguimiento de Afiliados (banquillo-yt-21, banquillo-tk-21).
-export const TAGS = { 'banquillo-yt-21': 'YouTube', 'banquillo-tk-21': 'TikTok' };
+export const TAGS = { 'banquillo-yt-21': 'YouTube', 'banquillo-tk-21': 'TikTok', 'banquillo-ig-21': 'Instagram' };
 export function platformOf(v) {
   const t = norm(v);
   if (!t) return '';

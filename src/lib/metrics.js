@@ -186,7 +186,7 @@ export function buildCtx({ data, settings, asOf, range, campana }) {
   return ctx;
 }
 
-export const PLATAFORMAS = ['YouTube', 'TikTok'];
+export const PLATAFORMAS = ['YouTube', 'TikTok', 'Instagram'];
 
 // Redes y enlaces de afiliado: visualizaciones por plataforma y lo que convierten en clics, pedidos y comisión.
 export function buildRedes({ videos, afiliados, asOf }) {
