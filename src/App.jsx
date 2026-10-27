@@ -9,9 +9,10 @@ import Ads from './views/ads.jsx';
 import Terminos from './views/terminos.jsx';
 import Caja from './views/caja.jsx';
 import Resenas from './views/resenas.jsx';
+import Redes from './views/redes.jsx';
 import Datos from './views/datos.jsx';
 
-const TABS = [['resumen', 'Resumen'], ['plan', 'Plan vs real'], ['ads', 'Ads'], ['terminos', 'Términos'], ['caja', 'Caja'], ['resenas', 'Reseñas y ranking'], ['datos', 'Datos']];
+const TABS = [['resumen', 'Resumen'], ['plan', 'Plan vs real'], ['ads', 'Ads'], ['terminos', 'Términos'], ['redes', 'Redes y afiliados'], ['caja', 'Caja'], ['resenas', 'Reseñas y ranking'], ['datos', 'Datos']];
 const PRESETS = [['todo', 'Todo'], ['7', '7 días'], ['30', '30 días'], ['90', '90 días'], ['mes', 'Este mes']];
 
 function rangeOf(preset, asOf) {
@@ -64,6 +65,7 @@ export default function App() {
         {view === 'plan' && <PlanView ctx={ctx} />}
         {view === 'ads' && <Ads ctx={ctx} />}
         {view === 'terminos' && <Terminos ctx={ctx} />}
+        {view === 'redes' && <Redes ctx={ctx} />}
         {view === 'caja' && <Caja ctx={ctx} data={data} />}
         {view === 'resenas' && <Resenas ctx={ctx} data={data} />}
         {view === 'datos' && <Datos st={st} />}

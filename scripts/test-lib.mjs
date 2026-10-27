@@ -57,11 +57,53 @@ eq(new Set(run(`Fecha,Campaña,Clics,Gasto
 2026-11-03,A,2,2
 2026-11-04,A,1,1`, 'ads').records.map(ds.key)).size, 2, 'filas repetidas se suman');
 
+// Afiliados de Amazon: tendencias diarias con ID de seguimiento
+r = run(`Fecha,ID de seguimiento,Clics,Artículos pedidos (Amazon),Artículos pedidos (terceros),Total de artículos pedidos,Conversión,Artículos enviados,Ingresos,Tarifas por publicidad
+2026-10-28,banquillo-yt-21,12,0,0,1,"8,33 %",1,"10,49","0,31"
+2026-10-28,banquillo-tk-21,7,0,0,0,"0 %",0,"0,00","0,00"`, 'afiliados');
+eq(r.records.length, 2); eq(r.records[0].plataforma, 'YouTube'); eq(r.records[1].plataforma, 'TikTok'); eq(r.records[0].comision, 0.31); eq(r.records[0].pedidos, 1); eq(r.records[0].clics, 12);
+
+// Afiliados sin columna de ID: la plataforma la pone el usuario
+{
+  const rows = Papa.parse(`Date,Clicks,Total Items Ordered,Items Shipped,Revenue,Ad Fees
+2026-10-29,5,1,1,10.49,0.31`, { skipEmptyLines: 'greedy' }).data;
+  const det = detectDataset(rows);
+  eq(det.best.id, 'afiliados');
+  eq(convertRows(rows, det.best.header.idx, det.best.header.mapping, DATASETS.afiliados).records.length, 0, 'sin plataforma no importa');
+  const c = convertRows(rows, det.best.header.idx, det.best.header.mapping, DATASETS.afiliados, { plataforma: 'TikTok' });
+  eq(c.records[0].plataforma, 'TikTok'); eq(c.records[0].ventas, 10.49);
+}
+
+// YouTube Studio (CSV del gráfico) y TikTok Studio (resumen)
+{
+  const rows = Papa.parse(`Fecha,Visualizaciones
+2026-10-28,1532
+2026-10-29,2210`, { skipEmptyLines: 'greedy' }).data;
+  const det = detectDataset(rows);
+  eq(det.best.id, 'videos');
+  const c = convertRows(rows, det.best.header.idx, det.best.header.mapping, DATASETS.videos, { plataforma: 'YouTube' });
+  eq(c.records.length, 2); eq(c.records[1].visualizaciones, 2210);
+  const rows2 = Papa.parse(`Date,Video Views,Profile Views,Likes,Comments,Shares
+2026-10-28,3400,80,210,14,9`, { skipEmptyLines: 'greedy' }).data;
+  const det2 = detectDataset(rows2);
+  eq(det2.best.id, 'videos');
+  const c2 = convertRows(rows2, det2.best.header.idx, det2.best.header.mapping, DATASETS.videos, { plataforma: 'TikTok' });
+  eq(c2.records[0].visualizaciones, 3400); eq(c2.records[0].perfil, 80); eq(c2.records[0].likes, 210);
+}
+
+// La comisión de afiliados entra en ingresos, neto y caja
+{
+  const base = { ...DEFAULTS, afiliados: [{ fecha: '2026-10-28', plataforma: 'YouTube', clics: 12, pedidos: 1, comision: 0.31 }], videos: [{ fecha: '2026-10-28', plataforma: 'YouTube', visualizaciones: 1000 }] };
+  const c = buildCtx({ data: base, settings: base.settings, asOf: '2027-01-15', range: {}, campana: '' });
+  eq(c.totals.afi, 0.31); eq(+c.totals.neto.toFixed(2), 0.31); eq(c.redes.tot.clics, 12); eq(c.redes.byPlat.find((x) => x.plataforma === 'YouTube').clicsMil, 12);
+  eq(+c.cash.at(-1).cobrado.toFixed(2), 0.31, 'cobrado a 60 días');
+}
+
 // Métricas con datos de ejemplo
 const d = { ...DEFAULTS, ...buildDemo() };
 const c = buildCtx({ data: d, settings: d.settings, asOf: DEMO_ASOF, range: {}, campana: '' });
 assert.ok(c.totals.copias > 100 && c.totals.adsSin > 0);
-assert.ok(Math.abs(c.totals.neto - (c.totals.roy - c.totals.adsIva - c.totals.otros)) < 1e-6);
+assert.ok(Math.abs(c.totals.neto - (c.totals.roy + c.totals.afi - c.totals.adsIva - c.totals.otros)) < 1e-6);
 assert.ok(Math.abs(c.monthly.at(-1).acum - c.totals.neto) < 1e-6, 'acumulado = neto total');
 assert.ok(c.byCamp.length === 3 && c.terminos.length === 26);
 const vacio = buildCtx({ data: DEFAULTS, settings: DEFAULTS.settings, asOf: '2026-10-05', range: {}, campana: '' });

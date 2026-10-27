@@ -14,12 +14,12 @@ export default function Caja({ ctx, data }) {
   return (
     <>
       <div className="stats">
-        <Stat label="Caja hoy" value={last ? eurSigned(last.cash) : '—'} detail="Lo cobrado menos Ads con IVA y gastos" tone={last && last.cash < 0 ? 'down' : 'up'} />
+        <Stat label="Caja hoy" value={last ? eurSigned(last.cash) : '—'} detail="Lo cobrado (regalías y afiliados) menos Ads con IVA y gastos" tone={last && last.cash < 0 ? 'down' : 'up'} />
         <Stat label="Punto más bajo" value={eurSigned(ctx.cashMin)} detail="Lo máximo que has tenido que adelantar" />
-        <Stat label="Regalías por cobrar" value={eur(ctx.pendiente)} detail={`Amazon paga a unos ${data.settings.pagoDias} días`} />
-        <Stat label="Neto contable" value={eurSigned(ctx.totals.neto)} detail="Cuenta las regalías cuando se venden" />
+        <Stat label="Ingresos por cobrar" value={eur(ctx.pendiente)} detail={`Regalías y afiliados: Amazon paga a unos ${data.settings.pagoDias} días`} />
+        <Stat label="Neto contable" value={eurSigned(ctx.totals.neto)} detail="Cuenta los ingresos cuando se generan" />
       </div>
-      <Card title="Caja mes a mes" sub="Los anuncios y los gastos salen al momento; las regalías entran con retraso" table={tabla}>
+      <Card title="Caja mes a mes" sub="Los anuncios y los gastos salen al momento; regalías y comisiones entran con retraso" table={tabla}>
         {ctx.hasData ? (
           <LineChart labels={labels} height={260} yFmt={(v) => eur(v)} series={[
             { id: 'cash', label: 'Caja', color: C.real, values: ctx.cash.map((x) => x.cash), width: 2.5 },
@@ -29,16 +29,16 @@ export default function Caja({ ctx, data }) {
         ) : <p className="empty">Sin datos todavía.</p>}
       </Card>
       <div className="grid g2">
-        <Card title="Calendario de cobros" sub="Mes de las ventas y día aproximado en que Amazon las paga">
-          <DataTable cols={[{ k: 'mes', label: 'Ventas de', left: true }, { k: 'pago', label: 'Se cobra hacia' }, { k: 'roy', label: 'Importe', fmt: (v) => eur(v) }]}
-            rows={ctx.cobros.map((c) => ({ id: c.m, mes: fmtMonthLong(c.m), pago: fmtDate(c.pago), roy: c.roy }))} empty="Sin regalías todavía." />
+        <Card title="Calendario de cobros" sub="Mes de las ventas y día aproximado en que Amazon las paga (KDP y Afiliados pagan por separado)">
+          <DataTable cols={[{ k: 'mes', label: 'Ventas de', left: true }, { k: 'pago', label: 'Se cobra hacia' }, { k: 'roy', label: 'Regalías KDP', fmt: (v) => eur(v, 2) }, { k: 'afi', label: 'Afiliados', fmt: (v) => eur(v, 2) }, { k: 'total', label: 'Total', fmt: (v) => eur(v, 2) }]}
+            rows={ctx.cobros.map((c) => ({ id: c.m, mes: fmtMonthLong(c.m), pago: fmtDate(c.pago), roy: c.roy, afi: c.afi, total: c.total }))} empty="Sin ingresos todavía." />
         </Card>
-        <Card title="Entradas y salidas por mes" sub="Regalías del mes frente a Ads con IVA y otros gastos">
+        <Card title="Entradas y salidas por mes" sub="Regalías y afiliados del mes frente a Ads con IVA y otros gastos">
           <ColumnChart stacked={false} labels={ctx.monthly.map((x) => fmtMonth(x.m))} yFmt={(v) => eur(v)}
-            series={[{ id: 'roy', label: 'Regalías', color: C.org, values: ctx.monthly.map((x) => x.roy) }, { id: 'out', label: 'Ads y gastos', color: C.ads, values: ctx.monthly.map((x) => x.adsIva + x.otros) }]} ariaLabel="Regalías frente a gastos por mes" />
+            series={[{ id: 'roy', label: 'Regalías', color: C.org, values: ctx.monthly.map((x) => x.roy) }, { id: 'afi', label: 'Afiliados', color: C.real, values: ctx.monthly.map((x) => x.afi) }, { id: 'out', label: 'Ads y gastos', color: C.ads, values: ctx.monthly.map((x) => x.adsIva + x.otros) }]} ariaLabel="Regalías frente a gastos por mes" />
         </Card>
       </div>
-      <p className="note">Es una estimación: el retraso de {num(ctx.lag)} meses sale de «días de pago» en Datos › Ajustes. Para el cobro real, mira Informes › Pagos en KDP.</p>
+      <p className="note">Es una estimación: el retraso de {num(ctx.lag)} meses sale de «días de pago» en Datos › Ajustes. Para el cobro real, mira Informes › Pagos en KDP y Pagos en Afiliados de Amazon.</p>
     </>
   );
 }

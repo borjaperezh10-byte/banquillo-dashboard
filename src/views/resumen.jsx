@@ -46,7 +46,7 @@ export default function Resumen({ ctx, data, st }) {
         <div className="side">
           <span className="t">Neto acumulado real</span>
           <span className="big">{eurSigned(t.neto).replace('+', '').replace(/^−0 €$/, '0 €')}</span>
-          <span className="sub">{num(t.copias)} copias · regalías {eur(t.roy)} · Ads con IVA {eur(t.adsIva)}{t.otros ? ` · otros ${eur(t.otros)}` : ''}</span>
+          <span className="sub">{num(t.copias)} copias · regalías {eur(t.roy)}{t.afi ? ` · afiliados ${eur(t.afi, 2)}` : ''} · Ads con IVA {eur(t.adsIva)}{t.otros ? ` · otros ${eur(t.otros)}` : ''}</span>
         </div>
         <div className="mid">
           {diff == null ? (ctx.hasData ? 'sin plan para este mes' : 'esperando los primeros datos') : <>{diff >= 0 ? 'por delante' : 'por detrás'}<b>{eurSigned(diff)}</b>del plan normal</>}
@@ -70,6 +70,7 @@ export default function Resumen({ ctx, data, st }) {
       <div className="stats">
         <Stat label="Copias vendidas" value={num(t.copias)} detail={mon ? `${num(mon.copias)} este mes` : ''} />
         <Stat label="Regalías" value={eur(t.roy)} detail={`${eur(t.regaliaMedia, 2)} de media por copia`} />
+        <Stat label="Afiliados (YouTube y TikTok)" value={eur(t.afi, 2)} detail={`${num(ctx.redes.tot.pedidos)} pedidos · ${num(ctx.redes.tot.clics)} clics · ${num(ctx.redes.tot.vis)} visualizaciones`} />
         <Stat label="Gasto en Ads (con IVA)" value={eur(t.adsIva)} detail={`${eur(t.adsSin)} sin IVA`} />
         <Stat label="ACOS" value={pct(t.acos)} detail={`equilibrio ${pct(ctx.eco.acosEquilibrio)}`} tone={t.acos != null && t.acos <= ctx.eco.acosEquilibrio ? 'up' : ''} />
         <Stat label="Coste por venta con Ads" value={t.costeVenta != null ? eur(t.costeVenta, 2) : '—'} detail={`${num(t.pedidos)} pedidos`} />
@@ -77,7 +78,7 @@ export default function Resumen({ ctx, data, st }) {
       </div>
 
       <div className="grid g21">
-        <Card title="Neto acumulado frente al plan" sub="Regalías menos Ads con IVA y otros gastos, mes a mes" table={monthTable}>
+        <Card title="Neto acumulado frente al plan" sub="Regalías y comisiones de afiliados menos Ads con IVA y otros gastos, mes a mes" table={monthTable}>
           <LineChart labels={labels} series={series} height={280} initialOff={{ best: true }} yFmt={(v) => eur(v)} refs={ctx.asOf < RULES.brakeDate ? [] : [{ y: RULES.brakeNet, label: 'umbral de freno' }]} ariaLabel="Neto acumulado real frente a los tres escenarios del plan" />
         </Card>
         <div className="grid">

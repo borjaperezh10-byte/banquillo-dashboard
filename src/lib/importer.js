@@ -68,7 +68,57 @@ export const DATASETS = {
     sum: ['impresiones', 'clics', 'gasto', 'ventas', 'pedidos'],
     replaceAll: true,
   },
+  videos: {
+    id: 'videos',
+    label: 'Redes: visualizaciones (YouTube o TikTok)',
+    help: 'YouTube Studio › Estadísticas › Ver más › Exportar vista actual (CSV del gráfico, por día). TikTok Studio › Estadísticas › Descargar datos (resumen por día). Si el archivo no trae una columna de plataforma, elige la plataforma abajo. Reimportar un día lo actualiza, no lo duplica.',
+    fields: {
+      fecha: { label: 'Fecha', type: T.date, req: true, aliases: ['fecha', 'date', 'dia', 'day'] },
+      plataforma: { label: 'Plataforma', type: T.text, aliases: ['plataforma', 'platform', 'red', 'canal'] },
+      video: { label: 'Vídeo', type: T.text, aliases: ['titulo del video', 'video title', 'titulo', 'title', 'contenido', 'content', 'video'], exclude: ['visualizaciones', 'views', 'publicacion'] },
+      visualizaciones: { label: 'Visualizaciones', type: T.num, req: true, aliases: ['visualizaciones de videos', 'visualizaciones de video', 'video views', 'visualizaciones', 'views', 'reproducciones', 'plays'], exclude: ['perfil', 'profile', 'tiempo', 'time', 'duracion', 'media', 'average', 'porcentaje', 'unicos', 'unique'] },
+      likes: { label: 'Me gusta', type: T.num, aliases: ['me gusta', 'likes', 'like'], exclude: ['no me gusta', 'dislikes'] },
+      comentarios: { label: 'Comentarios', type: T.num, aliases: ['comentarios', 'comments'] },
+      compartidos: { label: 'Compartidos', type: T.num, aliases: ['veces compartido', 'compartidos', 'compartido', 'shares'] },
+      seguidores: { label: 'Seguidores o suscriptores nuevos', type: T.num, aliases: ['suscriptores', 'subscribers', 'seguidores', 'followers', 'nuevos seguidores'], exclude: ['perdidos', 'lost'] },
+      perfil: { label: 'Visitas al perfil', type: T.num, aliases: ['visualizaciones de perfil', 'visualizaciones del perfil', 'profile views', 'visitas al perfil'] },
+    },
+    defaults: { plataforma: ['YouTube', 'TikTok'] },
+    key: (r) => [r.fecha, r.plataforma, r.video].join('|'),
+    sum: ['visualizaciones', 'likes', 'comentarios', 'compartidos', 'seguidores', 'perfil'],
+  },
+  afiliados: {
+    id: 'afiliados',
+    label: 'Amazon Afiliados: enlaces de YouTube y TikTok',
+    help: 'Afiliados de Amazon › Informes › Tendencias diarias, filtrado por ID de seguimiento (banquillo-yt-21 o banquillo-tk-21), descargado en CSV. Si trae la columna «ID de seguimiento», la plataforma sale de ahí; si no, elígela abajo. La comisión son las «Tarifas por publicidad».',
+    fields: {
+      fecha: { label: 'Fecha', type: T.date, req: true, aliases: ['fecha', 'date', 'fecha de envio', 'date shipped', 'dia', 'day'] },
+      tag: { label: 'ID de seguimiento', type: T.text, aliases: ['id de seguimiento', 'tracking id', 'tag', 'etiqueta'] },
+      clics: { label: 'Clics', type: T.num, aliases: ['clics', 'clicks', 'clic'], exclude: ['conversion', 'tasa'] },
+      pedidos: { label: 'Artículos pedidos', type: T.num, aliases: ['total de articulos pedidos', 'total items ordered', 'articulos pedidos', 'items ordered', 'pedidos', 'ordered items'], exclude: ['terceros', '3rd party', 'conversion'] },
+      enviados: { label: 'Artículos enviados', type: T.num, aliases: ['articulos enviados', 'items shipped', 'enviados'] },
+      devueltos: { label: 'Devoluciones', type: T.num, aliases: ['devoluciones', 'returns', 'articulos devueltos'] },
+      ventas: { label: 'Ingresos (importe de las compras)', type: T.num, aliases: ['ingresos', 'revenue', 'ventas'], exclude: ['devoluciones', 'returns'] },
+      comision: { label: 'Comisión (tarifas por publicidad)', type: T.num, req: true, aliases: ['tarifas por publicidad', 'tarifas de publicidad', 'total de tarifas por publicidad', 'ad fees', 'total ad fees', 'comisiones', 'comision', 'ganancias', 'earnings', 'tarifas'], exclude: ['devoluciones', 'returns'] },
+    },
+    defaults: { plataforma: ['YouTube', 'TikTok'] },
+    key: (r) => [r.fecha, r.plataforma].join('|'),
+    sum: ['clics', 'pedidos', 'enviados', 'devueltos', 'ventas', 'comision'],
+  },
 };
+
+// Plataforma a partir del ID de seguimiento de Afiliados (banquillo-yt-21, banquillo-tk-21).
+export const TAGS = { 'banquillo-yt-21': 'YouTube', 'banquillo-tk-21': 'TikTok' };
+export function platformOf(v) {
+  const t = norm(v);
+  if (!t) return '';
+  const raw = String(v).trim().toLowerCase();
+  if (TAGS[raw]) return TAGS[raw];
+  if (/\byt\b|youtube|shorts/.test(t)) return 'YouTube';
+  if (/\btk\b|\btt\b|tiktok/.test(t)) return 'TikTok';
+  if (/instagram|\big\b|reels/.test(t)) return 'Instagram';
+  return String(v).trim();
+}
 
 function aliasScore(header, field) {
   const h = norm(header);
@@ -114,7 +164,7 @@ const missingReq = (ds, mapping) => {
 export function detectHeader(rows, ds) {
   let best = { idx: 0, score: -1, mapping: {} };
   rows.slice(0, 25).forEach((row, idx) => {
-    if (!row || row.filter((c) => c !== null && c !== '' && c !== undefined).length < 3) return;
+    if (!row || row.filter((c) => c !== null && c !== "" && c !== undefined).length < 2) return;
     const headers = row.map((c) => (c == null ? '' : String(c)));
     const mapping = autoMap(headers, ds);
     const score = Object.keys(mapping).length + (missingReq(ds, mapping).length === 0 ? 10 : 0);
@@ -133,13 +183,19 @@ export function detectDataset(rows) {
   // Un informe de términos tiene la columna de término; uno de ventas, la de regalía.
   const withTerm = results.find((r) => r.id === 'terminos' && r.ok && r.header.mapping.termino !== undefined);
   const withRoy = results.find((r) => r.id === 'ventas' && r.ok);
+  const withFee = results.find((r) => r.id === 'afiliados' && r.ok);
+  const withCamp = results.find((r) => r.id === 'ads' && r.ok);
+  const withViews = results.find((r) => r.id === 'videos' && r.ok);
   if (withRoy) return { best: withRoy, results };
   if (withTerm) return { best: withTerm, results };
+  if (withFee) return { best: withFee, results };
+  if (withCamp) return { best: withCamp, results };
+  if (withViews) return { best: withViews, results };
   results.sort((a, b) => b.score - a.score);
   return { best: results[0], results };
 }
 
-export function convertRows(rows, headerIdx, mapping, ds) {
+export function convertRows(rows, headerIdx, mapping, ds, defaults = {}) {
   const out = new Map();
   let skipped = 0;
   let agregadas = 0;
@@ -179,6 +235,21 @@ export function convertRows(rows, headerIdx, mapping, ds) {
       rec = {
         fecha: rec.fecha, campana: rec.campana, impresiones: rec.impresiones ?? 0, clics: rec.clics ?? 0, gasto: rec.gasto ?? 0,
         ventas: rec.ventas ?? 0, pedidos: rec.pedidos ?? rec.unidades ?? 0, unidades: rec.unidades ?? rec.pedidos ?? 0,
+      };
+    } else if (ds.id === 'videos') {
+      const plataforma = platformOf(rec.plataforma) || defaults.plataforma || '';
+      if (!plataforma) { skipped++; continue; }
+      if (/^total/i.test(rec.video || '')) continue;
+      rec = {
+        fecha: rec.fecha, plataforma, video: rec.video || '', visualizaciones: rec.visualizaciones ?? 0, likes: rec.likes ?? 0,
+        comentarios: rec.comentarios ?? 0, compartidos: rec.compartidos ?? 0, seguidores: rec.seguidores ?? 0, perfil: rec.perfil ?? 0,
+      };
+    } else if (ds.id === 'afiliados') {
+      const plataforma = platformOf(rec.tag) || defaults.plataforma || '';
+      if (!plataforma) { skipped++; continue; }
+      rec = {
+        fecha: rec.fecha, plataforma, clics: rec.clics ?? 0, pedidos: rec.pedidos ?? 0, enviados: rec.enviados ?? 0,
+        devueltos: rec.devueltos ?? 0, ventas: rec.ventas ?? 0, comision: rec.comision ?? 0,
       };
     } else {
       if (/^total/i.test(rec.termino)) continue;

@@ -53,24 +53,28 @@ export function buildCtx({ data, settings, asOf, range, campana }) {
   if (unknownCur.size) warnings.push(`Moneda sin tipo de cambio (${[...unknownCur].join(', ')}): se cuenta 1 a 1. Defínelo en Ajustes.`);
   const iva = 1 + settings.ivaAds;
   const ads = data.ads.map((r) => ({ ...r, gastoIva: r.gasto * iva }));
+  const afiliados = data.afiliados || [];
+  const videos = data.videos || [];
   const inR = (d) => (!range.from || d >= range.from) && (!range.to || d <= range.to);
 
   // --- Mensual (todo el histórico, sin filtros)
-  const firstData = [...ventas.map((r) => r.fecha), ...ads.map((r) => r.fecha), ...data.gastos.map((r) => r.fecha)].sort()[0];
+  const firstData = [...ventas.map((r) => r.fecha), ...ads.map((r) => r.fecha), ...data.gastos.map((r) => r.fecha), ...afiliados.map((r) => r.fecha)].sort()[0];
   const startMonth = !firstData || monthOf(firstData) > PLAN_START ? PLAN_START : monthOf(firstData);
   const endMonth = monthOf(asOf) > startMonth ? monthOf(asOf) : startMonth;
   const months = monthsRange(startMonth, endMonth);
-  const M = Object.fromEntries(months.map((m) => [m, { m, copias: 0, roy: 0, ads: 0, adsIva: 0, otros: 0, clics: 0, imp: 0, adsVentas: 0, adsUds: 0, pedidos: 0 }]));
+  const M = Object.fromEntries(months.map((m) => [m, { m, copias: 0, roy: 0, afi: 0, ads: 0, adsIva: 0, otros: 0, clics: 0, imp: 0, adsVentas: 0, adsUds: 0, pedidos: 0 }]));
   ventas.forEach((r) => { const x = M[monthOf(r.fecha)]; if (x) { x.copias += r.unidades; x.roy += r.roy; } });
   ads.forEach((r) => {
     const x = M[monthOf(r.fecha)];
     if (x) { x.ads += r.gasto; x.adsIva += r.gastoIva; x.clics += r.clics; x.imp += r.impresiones; x.adsVentas += r.ventas; x.adsUds += r.unidades; x.pedidos += r.pedidos; }
   });
   data.gastos.forEach((r) => { const x = M[monthOf(r.fecha)]; if (x) x.otros += r.importe; });
+  afiliados.forEach((r) => { const x = M[monthOf(r.fecha)]; if (x) x.afi += r.comision || 0; });
   let acum = 0;
   const monthly = months.map((m) => {
     const x = M[m];
-    x.neto = x.roy - x.adsIva - x.otros;
+    x.ingresos = x.roy + x.afi;
+    x.neto = x.ingresos - x.adsIva - x.otros;
     acum += x.neto;
     x.acum = acum;
     x.org = Math.max(0, x.copias - x.adsUds);
@@ -89,12 +93,13 @@ export function buildCtx({ data, settings, asOf, range, campana }) {
 
   // --- Totales (todo el histórico)
   const t = {
-    copias: sum(ventas, (r) => r.unidades), roy: sum(ventas, (r) => r.roy),
+    copias: sum(ventas, (r) => r.unidades), roy: sum(ventas, (r) => r.roy), afi: sum(afiliados, (r) => r.comision || 0),
     adsSin: sum(ads, (r) => r.gasto), adsIva: sum(ads, (r) => r.gastoIva), otros: sum(data.gastos, (r) => r.importe),
     clics: sum(ads, (r) => r.clics), imp: sum(ads, (r) => r.impresiones), adsVentas: sum(ads, (r) => r.ventas),
     pedidos: sum(ads, (r) => r.pedidos), adsUds: sum(ads, (r) => r.unidades),
   };
-  t.neto = t.roy - t.adsIva - t.otros;
+  t.ingresos = t.roy + t.afi;
+  t.neto = t.ingresos - t.adsIva - t.otros;
   t.acos = div(t.adsSin, t.adsVentas);
   t.cpc = div(t.adsSin, t.clics);
   t.ctr = div(t.clics, t.imp);
@@ -106,18 +111,18 @@ export function buildCtx({ data, settings, asOf, range, campana }) {
   const precio = priceAt(data.precios, asOf);
   const eco = unitEconomics(precio, settings);
 
-  // --- Caja: las regalías de un mes se cobran a fin del mes siguiente al siguiente (60 días)
+  // --- Caja: regalías de KDP y comisiones de Afiliados de un mes se cobran unos 60 días después de fin de mes
   const lag = Math.max(0, Math.round(settings.pagoDias / 30));
   let cashMin = 0;
   const cash = months.map((m, i) => {
-    const cobrado = sum(monthly.slice(0, Math.max(0, i - lag + 1)), (x) => x.roy);
+    const cobrado = sum(monthly.slice(0, Math.max(0, i - lag + 1)), (x) => x.ingresos);
     const salidas = sum(monthly.slice(0, i + 1), (x) => x.adsIva + x.otros);
     const c = cobrado - salidas;
     cashMin = Math.min(cashMin, c);
     return { m, cash: c, cobrado, salidas };
   });
-  const pendiente = sum(monthly.slice(Math.max(0, months.length - lag)), (x) => x.roy);
-  const cobros = monthly.filter((x) => x.roy > 0).map((x) => ({ m: x.m, roy: x.roy, pago: monthEnd(addMonths(x.m, lag)) }));
+  const pendiente = sum(monthly.slice(Math.max(0, months.length - lag)), (x) => x.ingresos);
+  const cobros = monthly.filter((x) => x.ingresos > 0).map((x) => ({ m: x.m, roy: x.roy, afi: x.afi, total: x.ingresos, pago: monthEnd(addMonths(x.m, lag)) }));
 
   // --- Filtros (Ads)
   const adsR = ads.filter((r) => inR(r.fecha) && (!campana || r.campana === campana));
@@ -174,9 +179,64 @@ export function buildCtx({ data, settings, asOf, range, campana }) {
     modo.texto = t.clics >= RULES.clicksForModeDecision ? 'Datos suficientes para decidir el modo' : `Provisional: con ${num(RULES.clicksForModeDecision - t.clics)} clics más será definitivo`;
   }
 
-  const ctx = { asOf, ventas, ads, months, monthly, planAt, totals: t, precio, eco, cash, cashMin, pendiente, cobros, lag, adsR, byCamp, campaignNames, daily, rng, terminos, gastoSinVentas, copiasPeriodo, bmode, modo, warnings, adsFrom, hasData: ventas.length + ads.length > 0 };
+  const redes = buildRedes({ videos, afiliados, asOf });
+
+  const ctx = { asOf, ventas, ads, redes, months, monthly, planAt, totals: t, precio, eco, cash, cashMin, pendiente, cobros, lag, adsR, byCamp, campaignNames, daily, rng, terminos, gastoSinVentas, copiasPeriodo, bmode, modo, warnings, adsFrom, hasData: ventas.length + ads.length + afiliados.length > 0 };
   ctx.alerts = buildAlerts(ctx, data, settings);
   return ctx;
+}
+
+export const PLATAFORMAS = ['YouTube', 'TikTok'];
+
+// Redes y enlaces de afiliado: visualizaciones por plataforma y lo que convierten en clics, pedidos y comisión.
+export function buildRedes({ videos, afiliados, asOf }) {
+  const plats = [...new Set([...PLATAFORMAS, ...videos.map((r) => r.plataforma), ...afiliados.map((r) => r.plataforma)])].filter(Boolean);
+  const byPlat = plats.map((p) => {
+    const v = videos.filter((r) => r.plataforma === p);
+    const a = afiliados.filter((r) => r.plataforma === p);
+    const x = {
+      plataforma: p,
+      vis: sum(v, (r) => r.visualizaciones || 0), likes: sum(v, (r) => r.likes || 0), comentarios: sum(v, (r) => r.comentarios || 0),
+      compartidos: sum(v, (r) => r.compartidos || 0), seguidores: sum(v, (r) => r.seguidores || 0),
+      clics: sum(a, (r) => r.clics || 0), pedidos: sum(a, (r) => r.pedidos || 0), enviados: sum(a, (r) => r.enviados || 0),
+      ventas: sum(a, (r) => r.ventas || 0), comision: sum(a, (r) => r.comision || 0),
+    };
+    x.clicsMil = x.vis > 0 ? (x.clics / x.vis) * 1000 : null;
+    x.conv = div(x.pedidos, x.clics);
+    x.eurMil = x.vis > 0 ? (x.comision / x.vis) * 1000 : null;
+    return x;
+  });
+  const tot = { vis: sum(byPlat, (x) => x.vis), clics: sum(byPlat, (x) => x.clics), pedidos: sum(byPlat, (x) => x.pedidos), comision: sum(byPlat, (x) => x.comision), seguidores: sum(byPlat, (x) => x.seguidores), ventas: sum(byPlat, (x) => x.ventas) };
+  tot.clicsMil = tot.vis > 0 ? (tot.clics / tot.vis) * 1000 : null;
+  tot.conv = div(tot.pedidos, tot.clics);
+
+  // Serie semanal (o mensual si hay más de 6 meses)
+  const fechas = [...videos.map((r) => r.fecha), ...afiliados.map((r) => r.fecha)].sort();
+  const first = fechas[0];
+  const mode = first && daysBetween(first, asOf) > 180 ? 'month' : 'week';
+  const buckets = [];
+  if (first) {
+    const end = fechas.at(-1) > asOf ? fechas.at(-1) : asOf;
+    if (mode === 'month') monthsRange(monthOf(first), monthOf(end)).forEach((m) => buckets.push(m));
+    else for (let w = weekStart(first); w <= end; w = addDays(w, 7)) buckets.push(w);
+  }
+  const B = Object.fromEntries(buckets.map((b) => [b, Object.fromEntries(plats.flatMap((p) => [[`v_${p}`, 0], [`c_${p}`, 0], [`k_${p}`, 0], [`p_${p}`, 0]]))]));
+  videos.forEach((r) => { const x = B[bucketKey(r.fecha, mode)]; if (x) x[`v_${r.plataforma}`] += r.visualizaciones || 0; });
+  afiliados.forEach((r) => { const x = B[bucketKey(r.fecha, mode)]; if (x) { x[`c_${r.plataforma}`] += r.comision || 0; x[`k_${r.plataforma}`] += r.clics || 0; x[`p_${r.plataforma}`] += r.pedidos || 0; } });
+  const serie = buckets.map((b) => ({ b, ...B[b] }));
+
+  // Vídeos con más visualizaciones (si el informe trae el título)
+  const V = new Map();
+  videos.filter((r) => r.video).forEach((r) => {
+    const k = `${r.plataforma}|${r.video}`;
+    const x = V.get(k) || { id: k, plataforma: r.plataforma, video: r.video, vis: 0, likes: 0, comentarios: 0 };
+    x.vis += r.visualizaciones || 0; x.likes += r.likes || 0; x.comentarios += r.comentarios || 0;
+    V.set(k, x);
+  });
+  const topVideos = [...V.values()].sort((a, b) => b.vis - a.vis);
+  const lastVid = videos.map((r) => r.fecha).sort().at(-1);
+  const lastAfi = afiliados.map((r) => r.fecha).sort().at(-1);
+  return { plats, byPlat, tot, serie, mode, topVideos, lastVid, lastAfi, hasData: videos.length + afiliados.length > 0 };
 }
 
 export function budgetAt(d) {
@@ -189,7 +249,7 @@ function buildAlerts(c, data, settings) {
   const t = c.totals;
   const push = (level, title, detail, view) => A.push({ level, title, detail, view });
   if (!c.hasData) {
-    push('info', 'Aún no hay datos', 'Importa el primer informe de KDP o de Amazon Ads en la pestaña Datos, o activa los datos de ejemplo para ver cómo queda.', 'datos');
+    push('info', 'Aún no hay datos', 'Importa el primer informe de KDP, Amazon Ads o Afiliados en la pestaña Datos, o activa los datos de ejemplo para ver cómo queda.', 'datos');
     return A;
   }
   // frescura
@@ -237,6 +297,13 @@ function buildAlerts(c, data, settings) {
     const planCop = SCENARIOS.normal.rows[idx].copias * frac;
     if (real && frac > 0.5 && planCop > 5 && real.copias < planCop * 0.7) push('warn', 'Ventas del mes por debajo del plan normal', `${num(real.copias)} copias frente a ${num(planCop)} esperadas a estas alturas.`, 'plan');
   }
+  // redes y afiliados
+  const R = c.redes;
+  if (R.lastVid && daysBetween(R.lastVid, c.asOf) > 7) push('info', 'Visualizaciones de redes sin actualizar', `El último dato de YouTube o TikTok es del ${fmtDate(R.lastVid)}.`, 'redes');
+  if (R.lastAfi && daysBetween(R.lastAfi, c.asOf) > 7) push('info', 'Afiliados sin actualizar', `El último dato de los enlaces de afiliado es del ${fmtDate(R.lastAfi)}.`, 'redes');
+  R.byPlat.forEach((x) => {
+    if (x.vis >= 5000 && x.clics === 0 && R.lastAfi) push('warn', `${x.plataforma}: ${num(x.vis)} visualizaciones y ningún clic en el enlace`, 'Revisa que el enlace siga visible (descripción, perfil o comentario fijado) y que el cierre del vídeo lo mencione.', 'redes');
+  });
   if (c.warnings.length) c.warnings.forEach((w) => push('info', 'Aviso de datos', w, 'datos'));
   const order = { critical: 0, warn: 1, info: 2, ok: 3 };
   return A.sort((a, b) => order[a.level] - order[b.level]);

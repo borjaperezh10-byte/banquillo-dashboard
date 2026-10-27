@@ -6,6 +6,14 @@ import { DATASETS, detectDataset, detectHeader, convertRows, autoMap } from '../
 import { eur, num } from '../lib/format.js';
 import { fmtDate } from '../lib/dates.js';
 
+// El nombre del archivo suele delatar la plataforma (p. ej. «tiktok_overview.xlsx» o «banquillo-yt-21.csv»).
+function guessDefaults(name) {
+  const n = String(name || '').toLowerCase();
+  if (/tiktok|-tk-|_tk_|\btk\b/.test(n)) return { plataforma: 'TikTok' };
+  if (/youtube|-yt-|_yt_|\byt\b|shorts/.test(n)) return { plataforma: 'YouTube' };
+  return {};
+}
+
 async function readFileRows(file) {
   const name = file.name || '';
   if (/\.xlsx?$/i.test(name)) {
@@ -36,6 +44,7 @@ function Importer({ st, data }) {
   const [msg, setMsg] = useState('');
   const [over, setOver] = useState(false);
   const [fname, setFname] = useState('');
+  const [defs, setDefs] = useState({});
   const inp = useRef(null);
   const rows = sheets?.[sheetIx]?.rows || [];
   const ds = DATASETS[dsId];
@@ -61,15 +70,18 @@ function Importer({ st, data }) {
       setSheets(s); setFname(file.name); setSheetIx(0);
       const det = detectDataset(s[0].rows);
       setDsId(det.best.id);
+      setDefs(guessDefaults(file.name));
       setup(s[0].rows, det.best.id);
     } catch (e) {
       setMsg(`No se pudo leer el archivo: ${e.message || e}. Prueba a exportarlo como CSV o XLSX.`);
     }
   };
   const headers = (rows[hdr] || []).map((c) => (c == null ? '' : String(c)));
-  const conv = useMemo(() => (rows.length ? convertRows(rows, hdr, map, ds) : null), [rows, hdr, map, ds]);
+  const conv = useMemo(() => (rows.length ? convertRows(rows, hdr, map, ds, defs) : null), [rows, hdr, map, ds, defs]);
   const missing = Object.entries(ds.fields).filter(([k, f]) => f.req && map[k] === undefined).map(([, f]) => f.label);
   (ds.needAny || []).forEach((g) => { if (!g.some((k) => map[k] !== undefined)) missing.push(g.map((k) => ds.fields[k].label).join(' o ')); });
+  const platCol = dsId === 'afiliados' ? 'tag' : 'plataforma';
+  if (ds.defaults?.plataforma && map[platCol] === undefined && !defs.plataforma) missing.push('Plataforma (elige YouTube o TikTok)');
 
   const apply = () => {
     if (!conv || !conv.records.length) return;
@@ -112,6 +124,15 @@ function Importer({ st, data }) {
                 <input type="number" min="1" max={Math.min(rows.length, 50)} value={hdr + 1} onChange={(e) => { const i = Math.max(0, +e.target.value - 1); setHdr(i); setMap(autoMap((rows[i] || []).map((c) => (c == null ? '' : String(c))), ds)); }} style={{ width: 90 }} /></label>
             </div>
             <p className="note">{ds.help}</p>
+            {ds.defaults?.plataforma && (
+              <div className="form-row">
+                <label className="field"><span>Plataforma {map[platCol] !== undefined ? '(para filas sin plataforma reconocible)' : 'de todo el archivo'}</span>
+                  <select value={defs.plataforma || ''} onChange={(e) => setDefs((d) => ({ ...d, plataforma: e.target.value }))}>
+                    <option value="">— elige —</option>
+                    {ds.defaults.plataforma.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select></label>
+              </div>
+            )}
             <div>
               {Object.entries(ds.fields).map(([fid, f]) => (
                 <div className="maprow" key={fid}>
@@ -147,6 +168,8 @@ const FORMS = {
   bsr: { title: 'Posición en ventas (BSR)', fields: [['fecha', 'Fecha', 'date'], ['rank', 'BSR', 'number'], ['categoria', 'Categoría', 'text']], cols: [{ k: 'fecha', label: 'Fecha', left: true, fmt: fmtDate }, { k: 'rank', label: 'BSR', fmt: num }, { k: 'categoria', label: 'Categoría', left: true }] },
   gastos: { title: 'Gastos fuera de Ads', fields: [['fecha', 'Fecha', 'date'], ['concepto', 'Concepto', 'text'], ['importe', 'Importe (€)', 'number'], ['canal', 'Canal', 'text']], cols: [{ k: 'fecha', label: 'Fecha', left: true, fmt: fmtDate }, { k: 'concepto', label: 'Concepto', left: true }, { k: 'importe', label: 'Importe', fmt: (v) => eur(v, 2) }, { k: 'canal', label: 'Canal', left: true }] },
   eventos: { title: 'Eventos y acciones', fields: [['fecha', 'Fecha', 'date'], ['texto', 'Qué has hecho', 'text'], ['tipo', 'Tipo', 'text']], cols: [{ k: 'fecha', label: 'Fecha', left: true, fmt: fmtDate }, { k: 'texto', label: 'Qué', left: true }, { k: 'tipo', label: 'Tipo', left: true }] },
+  videos: { title: 'Visualizaciones de redes (a mano)', sub: 'Para anotar un día sin importar el informe. Si luego importas ese mismo día, se suma al dato anotado: borra la fila manual antes.', fields: [['fecha', 'Fecha', 'date'], ['plataforma', 'Plataforma', ['YouTube', 'TikTok']], ['visualizaciones', 'Visualizaciones', 'number'], ['seguidores', 'Seguidores nuevos', 'number']], optional: ['seguidores'], cols: [{ k: 'fecha', label: 'Fecha', left: true, fmt: fmtDate }, { k: 'plataforma', label: 'Plataforma', left: true }, { k: 'video', label: 'Vídeo', left: true }, { k: 'visualizaciones', label: 'Visualizaciones', fmt: num }, { k: 'seguidores', label: 'Seguidores', fmt: num }] },
+  afiliados: { title: 'Enlaces de afiliado (a mano)', sub: 'Clics, pedidos y comisión de un día de Afiliados de Amazon, por plataforma.', fields: [['fecha', 'Fecha', 'date'], ['plataforma', 'Plataforma', ['YouTube', 'TikTok']], ['clics', 'Clics', 'number'], ['pedidos', 'Artículos pedidos', 'number'], ['comision', 'Comisión (€)', 'number']], optional: ['clics', 'pedidos'], cols: [{ k: 'fecha', label: 'Fecha', left: true, fmt: fmtDate }, { k: 'plataforma', label: 'Plataforma', left: true }, { k: 'clics', label: 'Clics', fmt: num }, { k: 'pedidos', label: 'Pedidos', fmt: num }, { k: 'comision', label: 'Comisión', fmt: (v) => eur(v, 2) }] },
   precios: { title: 'Cambios de precio', fields: [['desde', 'Desde', 'date'], ['precio', 'Precio con IVA (€)', 'number']], cols: [{ k: 'desde', label: 'Desde', left: true, fmt: fmtDate }, { k: 'precio', label: 'Precio', fmt: (v) => eur(v, 2) }] },
 };
 
@@ -159,7 +182,11 @@ function QuickAdd({ ds, st, data }) {
     const rec = {};
     for (const [k, , type] of cfg.fields) {
       const raw = v[k];
-      if (raw === undefined || raw === '') { if (k === 'categoria' || k === 'tipo' || k === 'canal' || k === 'nota') continue; setErr('Rellena todos los campos.'); return; }
+      if (raw === undefined || raw === '') {
+        if (k === 'categoria' || k === 'tipo' || k === 'canal' || k === 'nota') continue;
+        if (cfg.optional?.includes(k)) { rec[k] = 0; continue; }
+        setErr('Rellena todos los campos.'); return;
+      }
       rec[k] = type === 'number' ? Number(String(raw).replace(',', '.')) : raw;
       if (type === 'number' && !isFinite(rec[k])) { setErr('Hay un número que no se entiende.'); return; }
     }
@@ -168,13 +195,20 @@ function QuickAdd({ ds, st, data }) {
     setV({});
   };
   return (
-    <Card title={cfg.title}>
+    <Card title={cfg.title} sub={cfg.sub}>
       <form className="form-row" onSubmit={submit}>
-        {cfg.fields.map(([k, label, type]) => (
+        {cfg.fields.map(([k, label, type]) => (Array.isArray(type) ? (
+          <label className="field" key={k}><span>{label}</span>
+            <select value={v[k] ?? ''} onChange={(e) => setV((x) => ({ ...x, [k]: e.target.value }))}>
+              <option value="">— elige —</option>
+              {type.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+        ) : (
           <label className="field" key={k}><span>{label}</span>
             <input type={type} step={type === 'number' ? 'any' : undefined} value={v[k] ?? ''} onChange={(e) => setV((x) => ({ ...x, [k]: e.target.value }))} style={{ width: type === 'text' ? 170 : 130 }} />
           </label>
-        ))}
+        )))}
         <button type="submit" className="btn primary" disabled={st.demo}>Añadir</button>
       </form>
       {err && <p className="note warn" role="alert">{err}</p>}
@@ -239,7 +273,7 @@ function Backup({ st, data }) {
         <button type="button" className="btn danger" onClick={() => { if (window.confirm('Se borrarán todos los datos guardados en este navegador. ¿Seguro?')) st.dispatch({ type: 'reset' }); }}>Borrar todo</button>
       </div>
       {msg && <p className="note" role="status" style={{ marginTop: 8 }}>{msg}</p>}
-      <p className="note" style={{ marginTop: 8 }}>Guardado ahora: {num(n.ventas.length)} filas de ventas, {num(n.ads.length)} de campañas, {num(n.terminos.length)} términos.</p>
+      <p className="note" style={{ marginTop: 8 }}>Guardado ahora: {num(n.ventas.length)} filas de ventas, {num(n.ads.length)} de campañas, {num(n.terminos.length)} términos, {num((n.videos || []).length)} de redes y {num((n.afiliados || []).length)} de afiliados.</p>
     </Card>
   );
 }
@@ -252,6 +286,8 @@ export default function Datos({ st }) {
       <Importer st={st} data={data} />
       <div className="grid g2">
         {['resenas', 'bsr', 'gastos', 'eventos'].map((k) => <QuickAdd key={k} ds={k} st={st} data={data} />)}
+        <QuickAdd ds="afiliados" st={st} data={data} />
+        <QuickAdd ds="videos" st={st} data={data} />
         <QuickAdd ds="precios" st={st} data={data} />
         <Card title="Últimas importaciones">
           <DataTable cols={[{ k: 'fecha', label: 'Cuándo', left: true }, { k: 'ds', label: 'Tipo', left: true, fmt: (v) => DATASETS[v]?.label || v }, { k: 'archivo', label: 'Archivo', left: true }, { k: 'filas', label: 'Filas', fmt: num }]} rows={(st.real.importLog || []).map((r, i) => ({ id: i, ...r }))} empty="Aún no has importado nada." />

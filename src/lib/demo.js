@@ -79,8 +79,24 @@ export function buildDemo() {
     });
   });
 
+  // Redes: Shorts y TikTok desde el 27 de octubre, con su enlace de afiliado
+  const videos = [];
+  const afiliados = [];
+  daysRange('2026-10-27', DEMO_ASOF).forEach((d, i) => {
+    const yt = Math.round((300 + i * 38) * (0.6 + rnd() * 0.8));
+    const tk = Math.round((450 + i * 55) * (0.5 + rnd() * 1.0));
+    videos.push({ fecha: d, plataforma: 'YouTube', video: '', visualizaciones: yt, likes: Math.round(yt * 0.04), comentarios: Math.round(yt * 0.006), compartidos: Math.round(yt * 0.003), seguidores: Math.round(yt * 0.004), perfil: 0 });
+    videos.push({ fecha: d, plataforma: 'TikTok', video: '', visualizaciones: tk, likes: Math.round(tk * 0.06), comentarios: Math.round(tk * 0.008), compartidos: Math.round(tk * 0.005), seguidores: Math.round(tk * 0.006), perfil: Math.round(tk * 0.02) });
+    [['YouTube', yt, 0.0045], ['TikTok', tk, 0.0022]].forEach(([plataforma, vis, ctr]) => {
+      const clics = binom(vis, ctr);
+      const pedidos = binom(clics, 0.09);
+      const ventasA = +(pedidos * (price(d) + rnd() * 8)).toFixed(2);
+      afiliados.push({ fecha: d, plataforma, clics, pedidos, enviados: pedidos, devueltos: 0, ventas: ventasA, comision: +(ventasA * 0.03).toFixed(2) });
+    });
+  });
+
   return {
-    ventas, ads, terminos,
+    ventas, ads, terminos, videos, afiliados,
     resenas: [['2026-10-26', 1, 5], ['2026-11-03', 2, 4.5], ['2026-11-12', 4, 4.5], ['2026-11-26', 7, 4.6], ['2026-12-05', 10, 4.6], ['2026-12-16', 13, 4.7]].map(([fecha, n, nota], i) => ({ id: 'r' + i, fecha, n, nota })),
     bsr: [['2026-10-14', 182000], ['2026-10-21', 96000], ['2026-10-28', 71000], ['2026-11-04', 54000], ['2026-11-11', 41000], ['2026-11-18', 28000], ['2026-11-25', 17500], ['2026-12-02', 9800], ['2026-12-09', 12400], ['2026-12-16', 8700]].map(([fecha, rank], i) => ({ id: 'b' + i, fecha, rank, categoria: 'Libros' })),
     gastos: [['2026-10-12', '20 ejemplares de autor', 74.2, 'Ejemplares'], ['2026-10-19', 'Envíos a creadores', 46, 'Envíos'], ['2026-12-03', 'Anuncio en Instagram', 80, 'Redes']].map(([fecha, concepto, importe, canal], i) => ({ id: 'g' + i, fecha, concepto, importe, canal })),

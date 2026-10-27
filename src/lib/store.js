@@ -7,7 +7,7 @@ const KEY = 'banquillo.dashboard.v1';
 
 export const DEFAULTS = {
   settings: { ivaAds: 0.21, pagoDias: 60, fx: { USD: 0.92, GBP: 1.17, CAD: 0.66, JPY: 0.0061, MXN: 0.05 }, lanzamiento: '' },
-  ventas: [], ads: [], terminos: [], resenas: [], gastos: [], eventos: [], bsr: [],
+  ventas: [], ads: [], terminos: [], videos: [], afiliados: [], resenas: [], gastos: [], eventos: [], bsr: [],
   precios: [{ id: 'p0', desde: '2026-10-01', precio: 10.49 }],
   mappings: {}, importLog: [],
 };

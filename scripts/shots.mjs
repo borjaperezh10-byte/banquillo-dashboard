@@ -10,7 +10,7 @@ const srv = spawn('npx', ['vite', 'preview', '--port', '4173', '--strictPort'], 
 await new Promise((r) => setTimeout(r, 2500));
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
 const errors = [];
-const tabs = ['Resumen', 'Plan vs real', 'Ads', 'Términos', 'Caja', 'Reseñas y ranking', 'Datos'];
+const tabs = ['Resumen', 'Plan vs real', 'Ads', 'Términos', 'Caja', 'Redes y afiliados', 'Reseñas y ranking', 'Datos'];
 for (const [theme, w, h, tag] of [['light', 1280, 900, 'd-light'], ['dark', 1280, 900, 'd-dark'], ['light', 390, 844, 'm-light']]) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: theme });
   const page = await ctx.newPage();
