@@ -87,7 +87,9 @@ export function buildDemo() {
     const tk = Math.round((450 + i * 55) * (0.5 + rnd() * 1.0));
     videos.push({ fecha: d, plataforma: 'YouTube', video: '', visualizaciones: yt, likes: Math.round(yt * 0.04), comentarios: Math.round(yt * 0.006), compartidos: Math.round(yt * 0.003), seguidores: Math.round(yt * 0.004), perfil: 0 });
     videos.push({ fecha: d, plataforma: 'TikTok', video: '', visualizaciones: tk, likes: Math.round(tk * 0.06), comentarios: Math.round(tk * 0.008), compartidos: Math.round(tk * 0.005), seguidores: Math.round(tk * 0.006), perfil: Math.round(tk * 0.02) });
-    [['YouTube', yt, 0.0045], ['TikTok', tk, 0.0022]].forEach(([plataforma, vis, ctr]) => {
+    const ig = Math.round((150 + i * 20) * (0.5 + rnd() * 1.0));
+    videos.push({ fecha: d, plataforma: 'Instagram', video: '', visualizaciones: ig, likes: Math.round(ig * 0.07), comentarios: Math.round(ig * 0.006), compartidos: Math.round(ig * 0.004), seguidores: Math.round(ig * 0.005), perfil: Math.round(ig * 0.03) });
+    [['YouTube', yt, 0.0045], ['TikTok', tk, 0.0022], ['Instagram', ig, 0.003]].forEach(([plataforma, vis, ctr]) => {
       const clics = binom(vis, ctr);
       const pedidos = binom(clics, 0.09);
       const ventasA = +(pedidos * (price(d) + rnd() * 8)).toFixed(2);

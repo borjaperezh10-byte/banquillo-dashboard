@@ -70,7 +70,7 @@ export default function Resumen({ ctx, data, st }) {
       <div className="stats">
         <Stat label="Copias vendidas" value={num(t.copias)} detail={mon ? `${num(mon.copias)} este mes` : ''} />
         <Stat label="Regalías" value={eur(t.roy)} detail={`${eur(t.regaliaMedia, 2)} de media por copia`} />
-        <Stat label="Afiliados (YouTube y TikTok)" value={eur(t.afi, 2)} detail={`${num(ctx.redes.tot.pedidos)} pedidos · ${num(ctx.redes.tot.clics)} clics · ${num(ctx.redes.tot.vis)} visualizaciones`} />
+        <Stat label="Afiliados (YouTube, TikTok e Instagram)" value={eur(t.afi, 2)} detail={`${num(ctx.redes.tot.pedidos)} pedidos · ${num(ctx.redes.tot.clics)} clics · ${num(ctx.redes.tot.vis)} visualizaciones`} />
         <Stat label="Gasto en Ads (con IVA)" value={eur(t.adsIva)} detail={`${eur(t.adsSin)} sin IVA`} />
         <Stat label="ACOS" value={pct(t.acos)} detail={`equilibrio ${pct(ctx.eco.acosEquilibrio)}`} tone={t.acos != null && t.acos <= ctx.eco.acosEquilibrio ? 'up' : ''} />
         <Stat label="Coste por venta con Ads" value={t.costeVenta != null ? eur(t.costeVenta, 2) : '—'} detail={`${num(t.pedidos)} pedidos`} />

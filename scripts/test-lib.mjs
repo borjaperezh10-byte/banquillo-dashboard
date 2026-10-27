@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import Papa from 'papaparse';
 import { parseDate, parseNum } from '../src/lib/dates.js';
-import { DATASETS, detectDataset, convertRows } from '../src/lib/importer.js';
+import { DATASETS, detectDataset, convertRows, platformOf } from '../src/lib/importer.js';
 import { buildCtx } from '../src/lib/metrics.js';
 import { buildDemo, DEMO_ASOF } from '../src/lib/demo.js';
 import { DEFAULTS } from '../src/lib/store.js';
@@ -61,7 +61,7 @@ eq(new Set(run(`Fecha,Campaña,Clics,Gasto
 r = run(`Fecha,ID de seguimiento,Clics,Artículos pedidos (Amazon),Artículos pedidos (terceros),Total de artículos pedidos,Conversión,Artículos enviados,Ingresos,Tarifas por publicidad
 2026-10-28,banquillo-yt-21,12,0,0,1,"8,33 %",1,"10,49","0,31"
 2026-10-28,banquillo-tk-21,7,0,0,0,"0 %",0,"0,00","0,00"`, 'afiliados');
-eq(r.records.length, 2); eq(r.records[0].plataforma, 'YouTube'); eq(r.records[1].plataforma, 'TikTok'); eq(r.records[0].comision, 0.31); eq(r.records[0].pedidos, 1); eq(r.records[0].clics, 12);
+eq(r.records.length, 2); eq(r.records[0].plataforma, 'YouTube'); eq(platformOf('banquillo-ig-21'), 'Instagram'); eq(r.records[1].plataforma, 'TikTok'); eq(r.records[0].comision, 0.31); eq(r.records[0].pedidos, 1); eq(r.records[0].clics, 12);
 
 // Afiliados sin columna de ID: la plataforma la pone el usuario
 {
